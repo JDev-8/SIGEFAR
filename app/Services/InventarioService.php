@@ -73,7 +73,7 @@ class InventarioService
 
         $cantidadADescontarDeEsteLote = min($lote->cantidad_disponible, $cantidadRestantePorDescontar);
 
-        $lote->cantidad_diponible -= $cantidadADescontarDeEsteLote;
+        $lote->cantidad_disponible -= $cantidadADescontarDeEsteLote;
         $lote->save();
 
         Auditoria::create([

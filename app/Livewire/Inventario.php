@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\Producto;
+use App\Models\Lote;
 use App\Services\InventarioService;
 use Livewire\Attributes\Layout;
 
@@ -11,52 +12,64 @@ use Livewire\Attributes\Layout;
 class Inventario extends Component
 {
     public $productos = [];
+    public bool $editandoProducto = false;
+    public bool $editandoLote = false;
 
-    public string $nombre = '';
-    public string $codigo = '';
-    public string $tipo = '';
-    public string $precio = '';
-    public bool $requiere_receta = false;
+    // Campos Producto
+    public $productoId, $nombre, $codigo, $tipo, $precio, $requiere_receta = false;
+    
+    // Campos Lote
+    public $loteId, $producto_id_lote, $numero_lote, $fecha_vencimiento, $cantidad;
 
-    public string $producto_id_lote = '';
-    public string $numero_lote = '';
-    public string $fecha_vencimiento = '';
-    public string $cantidad = '';
+    public function mount() { $this->cargarProductos(); }
 
-    public function mount()
-    {
-        $this->cargarProductos();
-    }
-
-    public function cargarProductos()
-    {
-        $this->productos = Producto::with(['lotes' => function($query) {
-            $query->where('fecha_vencimiento', '>=', now()->toDateString())
-                  ->where('cantidad_disponible', '>', 0);
+    public function cargarProductos() {
+        $this->productos = Producto::with(['lotes' => function($q) {
+            $q->where('fecha_vencimiento', '>=', now()->toDateString());
         }])->get();
     }
 
-    public function guardarProducto(InventarioService $service)
-    {
+    public function resetCampos() {
+        $this->reset(['productoId', 'nombre', 'codigo', 'tipo', 'precio', 'requiere_receta', 'editandoProducto']);
+        $this->reset(['loteId', 'producto_id_lote', 'numero_lote', 'fecha_vencimiento', 'cantidad', 'editandoLote']);
+    }
+
+    public function editarProducto($id) {
+        $p = Producto::findOrFail($id);
+        $this->productoId = $p->id;
+        $this->nombre = $p->nombre; 
+        $this->codigo = $p->codigo; 
+        $this->tipo = $p->tipo;
+        $this->precio = $p->precio; 
+        $this->requiere_receta = (bool)$p->requiere_receta;
+        $this->editandoProducto = true;
+    }
+
+    public function guardarProducto(InventarioService $service) {
         $this->validate([
-            'nombre' => 'required|string|max:255',
-            'codigo' => 'required|string|unique:productos,codigo',
-            'tipo'   => 'required|string',
-            'precio' => 'required|numeric|min:0',
+            'nombre' => 'required', 
+            'codigo' => 'required|unique:productos,codigo,' . ($this->editandoProducto ? $this->productoId : 'NULL'), 
+            'precio' => 'required|numeric'
         ]);
-
-        $service->registrarProducto([
-            'nombre' => $this->nombre,
-            'codigo' => $this->codigo,
-            'tipo'   => $this->tipo,
-            'precio' => $this->precio,
-            'requiere_receta' => $this->requiere_receta ? 1 : 0,
-        ]);
-
-        $this->reset(['nombre', 'codigo', 'tipo', 'precio', 'requiere_receta']);
-        $this->cargarProductos();
         
-        session()->flash('mensaje', 'Producto registrado en el catálogo con éxito.');
+        $datos = [
+            'nombre' => $this->nombre, 
+            'codigo' => $this->codigo, 
+            'tipo' => $this->tipo, 
+            'precio' => $this->precio, 
+            'requiere_receta' => $this->requiere_receta
+        ];
+        
+        if ($this->editandoProducto) {
+            $service->actualizarProducto(Producto::find($this->productoId), $datos);
+            session()->flash('mensaje', 'Producto actualizado.');
+        } else {
+            $service->registrarProducto($datos);
+            session()->flash('mensaje', 'Producto registrado.');
+        }
+
+        $this->resetCampos(); 
+        $this->cargarProductos(); 
         $this->dispatch('cerrar-modal');
     }
 
@@ -85,8 +98,31 @@ class Inventario extends Component
         $this->dispatch('cerrar-modal');
     }
 
-    public function render()
-    {
-        return view('livewire.inventario');
+    public function editarLote($id) {
+        $l = Lote::findOrFail($id);
+        $this->loteId = $l->id;
+        $this->producto_id_lote = $l->producto_id;
+        $this->numero_lote = $l->numero_lote;
+        $this->fecha_vencimiento = $l->fecha_vencimiento;
+        $this->cantidad = $l->cantidad_disponible;
+        $this->editandoLote = true;
     }
+
+    public function actualizarLote(InventarioService $service) {
+        $lote = Lote::findOrFail($this->loteId);
+        $service->ajustarLote($lote, $this->cantidad, auth()->user()->persona_id, "Ajuste manual desde panel");
+        
+        $this->resetCampos(); 
+        $this->cargarProductos(); 
+        $this->dispatch('cerrar-modal');
+        session()->flash('mensaje', 'Stock de lote actualizado.');
+    }
+
+    public function eliminarLote($id) {
+        Lote::findOrFail($id)->delete();
+        $this->cargarProductos();
+        session()->flash('mensaje', 'Lote eliminado del sistema.');
+    }
+
+    public function render() { return view('livewire.inventario'); }
 }

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Livewire\Login;
 use App\Livewire\Inventario;
 use App\Livewire\Pos;
+use App\Livewire\Clientes;
 use App\Services\AuthService;
 
 Route::get('/', function () {
@@ -25,6 +26,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/inventario', Inventario::class)->name('inventario');
     
     Route::get('/pos', Pos::class)->name('pos');
+
+    Route::get('/clientes', Clientes::class)->name('clientes');
 
     Route::post('/logout', function (AuthService $authService) {
         $authService->logout();
