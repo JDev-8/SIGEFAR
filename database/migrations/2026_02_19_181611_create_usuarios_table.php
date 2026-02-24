@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('nombre_usuario')->unique();
             $table->string('contrasenia');
             $table->string('telefono', 12)->unique();
+            $table->string('direccion');
             $table->enum('rol', ['vendedor', 'administrador']);
             $table->timestamps();
 

@@ -28,7 +28,7 @@ class InventarioService
     return DB::transaction(function () use ($producto, $datosLote, $usuarioAdminId){
       $lote = $producto->lotes()->create([
         'numero_lote' => $datosLote['numero_lote'],
-        'fecha_nacimiento' => $datosLote['fecha_nacimiento'],
+        'fecha_vencimiento' => $datosLote['fecha_vencimiento'],
         'cantidad_disponible' => $datosLote['cantidad'],
       ]);
 
